@@ -1,4 +1,6 @@
-﻿using NueGames.Combat;
+﻿using NueGames.Action;
+using NueGames.Combat;
+using NueGames.Enums;
 using NueGames.Managers;
 
 namespace NueGames.Relic
@@ -34,6 +36,7 @@ namespace NueGames.Relic
         /// </summary>
         protected EventManager EventManager => EventManager.Instance;
         protected CombatManager CombatManager => CombatManager.Instance;
+        protected GameActionExecutor GameActionExecutor => GameActionExecutor.Instance;
         
         #region SetUp
 
@@ -58,7 +61,7 @@ namespace NueGames.Relic
 
             if (CombatManager != null)
             {
-                CombatManager.OnAllyTurnStarted += OnTurnStarted;
+                CombatManager.OnRoundStart += OnRoundStart;
             }
         }
 
@@ -78,7 +81,7 @@ namespace NueGames.Relic
             
             if (CombatManager != null)
             {
-                CombatManager.OnAllyTurnStarted -= OnTurnStarted;
+                CombatManager.OnRoundStart -= OnRoundStart;
             }
         }
         
@@ -128,16 +131,40 @@ namespace NueGames.Relic
 
         #region 戰鬥流程觸發
         /// <summary>
-        /// 回合開始時，觸發的方法
+        /// 遊戲回合開始時，觸發的方法
         /// </summary>
-        public virtual void OnTurnStarted()
+        protected virtual void OnRoundStart(RoundInfo info)
+        {
+            
+        }
+        
+        /// <summary>
+        /// 遊戲回合結束時，觸發的方法
+        /// </summary>
+        protected virtual void OnRoundEnd(RoundInfo info)
+        {
+            
+        }
+        
+        /// <summary>
+        /// 玩家/敵人 回合開始時觸發
+        /// </summary>
+        /// <param name="isAlly"></param>
+        protected virtual void OnTurnStart(TurnInfo info) 
+        {
+            
+        }
+        
+        /// <summary>
+        /// 玩家/敵人 回合結束時觸發
+        /// </summary>
+        protected virtual void OnTurnEnd(TurnInfo info)
         {
             
         }
         
 
         #endregion
-        
         
         #region 事件觸發的方法
         
@@ -172,6 +199,42 @@ namespace NueGames.Relic
         
         #endregion
 
+        
+        #region 工具
+        /// <summary>
+        /// 執行傷害行動
+        /// </summary>
+        /// <param name="damageInfo"></param>
+        protected void DoDamageAction(DamageInfo damageInfo)
+        {
+            DamageAction damageAction = new DamageAction();
+            damageAction.SetValue(damageInfo);
+            GameActionExecutor.AddToBottom(damageAction);
+        }
+
+        /// <summary>
+        /// 取得 DamageInfo
+        /// </summary>
+        /// <param name="damageValue"></param>
+        /// <param name="fixDamage"></param>
+        /// <returns></returns>
+        protected DamageInfo GetDamageInfo(int damageValue, bool fixDamage)
+        {
+            DamageInfo damageInfo = new DamageInfo()
+            {
+                Value = damageValue,
+                Target = CombatManager.CurrentMainAlly,
+                FixDamage = fixDamage,
+                ActionSource = ActionSource.Relic,
+                SourceRelic = RelicType
+            };
+
+            return damageInfo;
+        }
+
+        #endregion
+        
+        
         public override string ToString()
         {
             return $"{nameof(RelicType)}: {RelicType}, {nameof(NeedCounter)}: {NeedCounter}";

@@ -1,4 +1,5 @@
-﻿using NueGames.Characters;
+﻿using NueGames.Action;
+using NueGames.Characters;
 using NueGames.Combat;
 using NueGames.Enums;
 using NueGames.Managers;
@@ -18,7 +19,7 @@ namespace NueGames.Power
         /// <summary>
         /// 能力數值
         /// </summary>
-        public int Value;
+        public int Amount;
         /// <summary>
         /// 能力是否被觸發
         /// </summary>
@@ -56,9 +57,12 @@ namespace NueGames.Power
         /// </summary>
         protected EventManager EventManager => EventManager.Instance;
 
+        protected GameActionExecutor GameActionExecutor => GameActionExecutor.Instance;
+        protected CombatManager CombatManager => CombatManager.Instance;
+
         #region SetUp
 
-        public PowerBase(){
+        protected PowerBase(){
             SubscribeAllEvent();
         }
 
@@ -94,7 +98,7 @@ namespace NueGames.Power
         /// </summary>
         public virtual void MultiplyPower(int multiplyAmount)
         {
-            int addAmount = Mathf.RoundToInt(Value * (multiplyAmount - 1));
+            int addAmount = Mathf.RoundToInt(Amount * (multiplyAmount - 1));
             StackPower(addAmount);
         }
         
@@ -106,15 +110,15 @@ namespace NueGames.Power
         {
             if (IsActive)
             {
-                Value += stackAmount;
-                Owner?.CharacterStats.OnPowerChanged?.Invoke(PowerType, Value);
+                Amount += stackAmount;
+                Owner?.CharacterStats.OnPowerChanged?.Invoke(PowerType, Amount);
                 
             }
             else
             {
-                Value = stackAmount;
+                Amount = stackAmount;
                 IsActive = true;
-                Owner?.CharacterStats.OnPowerApplied?.Invoke(PowerType, Value);
+                Owner?.CharacterStats.OnPowerApplied?.Invoke(PowerType, Amount);
             }
 
             if (stackAmount > 0)
@@ -134,11 +138,11 @@ namespace NueGames.Power
         private void CheckClearPower()
         {
             //Check status
-            if (Value <= 0)
+            if (Amount <= 0)
             {
                 if (CanNegativeStack)
                 {
-                    if (Value == 0 && !IsPermanent)
+                    if (Amount == 0 && !IsPermanent)
                         ClearPower();
                 }
                 else
@@ -155,7 +159,7 @@ namespace NueGames.Power
         public void ClearPower()
         {
             IsActive = false;
-            Value = 0;
+            Amount = 0;
             Owner.CharacterStats.PowerDict.Remove(PowerType);
             Owner.CharacterStats.OnPowerCleared.Invoke(PowerType);
             UnSubscribeAllEvent();
@@ -206,10 +210,12 @@ namespace NueGames.Power
 
         
         #region 事件觸發的方法
+        
+
         /// <summary>
-        /// 回合開始時，觸發的方法
+        /// 回合結束時，更新能力
         /// </summary>
-        public virtual void OnTurnStarted()
+        public void UpdatePowerStatus()
         {
             //One turn only statuses
             if (ClearAtNextTurn)
@@ -222,11 +228,11 @@ namespace NueGames.Power
                 StackPower(-1);
             
             //Check status
-            if (Value <= 0)
+            if (Amount <= 0)
             {
                 if (CanNegativeStack)
                 {
-                    if (Value == 0 && !IsPermanent)
+                    if (Amount == 0 && !IsPermanent)
                         ClearPower();
                 }
                 else
@@ -235,17 +241,46 @@ namespace NueGames.Power
                         ClearPower();
                 }
             }
-            
-            
         }
 
+        #region 戰鬥流程觸發
         /// <summary>
-        /// 回合結束時觸發
+        /// 遊戲回合開始時，觸發的方法
         /// </summary>
-        public virtual void AtEndOfTurn(bool isAlly)
+        protected virtual void OnRoundStart(RoundInfo info)
         {
             
         }
+        
+        /// <summary>
+        /// 遊戲回合結束時，觸發的方法
+        /// </summary>
+        protected virtual void OnRoundEnd(RoundInfo info)
+        {
+            
+        }
+        
+        /// <summary>
+        /// 玩家/敵人 回合開始時觸發
+        /// </summary>
+        /// <param name="isAlly"></param>
+        protected virtual void OnTurnStart(TurnInfo info) 
+        {
+            
+        }
+        
+        /// <summary>
+        /// 玩家/敵人 回合結束時觸發
+        /// </summary>
+        protected virtual void OnTurnEnd(TurnInfo info)
+        {
+            
+        }
+        
+
+        #endregion
+        
+        
         
         
         /// <summary>
@@ -295,5 +330,53 @@ namespace NueGames.Power
         
         
         #endregion
+
+
+        #region 工具
+        /// <summary>
+        /// 取得能力的持有對象的 CharacterType
+        /// </summary>
+        /// <returns></returns>
+        public CharacterType GetOwnerCharacterType()
+        {
+            return Owner.CharacterType;
+        }
+
+        /// <summary>
+        /// 執行傷害行動
+        /// </summary>
+        /// <param name="damageInfo"></param>
+        protected void DoDamageAction(DamageInfo damageInfo)
+        {
+            DamageAction damageAction = new DamageAction();
+            damageAction.SetValue(damageInfo);
+            GameActionExecutor.AddToBottom(damageAction);
+        }
+
+        /// <summary>
+        /// 取得 DamageInfo
+        /// </summary>
+        /// <param name="damageValue"></param>
+        /// <param name="fixDamage"></param>
+        /// <param name="canPierceArmor"></param>
+        /// <returns></returns>
+        protected DamageInfo GetDamageInfo(int damageValue, bool fixDamage  = false, bool canPierceArmor  = false)
+        {
+            DamageInfo damageInfo = new DamageInfo()
+            {
+                Value = damageValue,
+                Target = Owner,
+                FixDamage = fixDamage,
+                CanPierceArmor = canPierceArmor,
+                ActionSource = ActionSource.Power,
+                SourcePower = PowerType
+            };
+
+            return damageInfo;
+        }
+
+        #endregion
+        
+        
     }
 }

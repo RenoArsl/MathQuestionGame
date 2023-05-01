@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using NueGames.Combat;
 using NueGames.Enums;
 using NueGames.Managers;
 using NueGames.Power;
@@ -41,6 +42,16 @@ namespace NueGames.Characters
         /// 事件：當生命值改變時觸發
         /// </summary>
         public Action<int, int> OnHealthChanged;
+        
+        /// <summary>
+        /// 被攻擊時。妳剛剛攻擊我的村莊 ? 我的 Coin Master 村莊 ?
+        /// </summary>
+        public Action<DamageInfo> OnAttacked;
+        /// <summary>
+        /// 攻擊時。應該是。妳大老遠跑來，就只因為我攻擊了妳的村莊?
+        /// </summary>
+        public Action<DamageInfo> OnAttack;
+
         /// <summary>
         ///  事件: 當獲得能力時觸發
         /// </summary>
@@ -58,7 +69,6 @@ namespace NueGames.Characters
         /// </summary>
         public Action<PowerType> OnPowerCleared;
         
-        public System.Action OnTakeDamageAction;
         public System.Action OnShieldGained;
         
         public EventManager EventManager => EventManager.Instance;
@@ -124,14 +134,14 @@ namespace NueGames.Characters
 
 
         /// <summary>
-        /// 回合開始時，通知持有的能力
+        /// 遊戲回合結束時，通知持有的能力
         /// </summary>
-        public void HandleAllPowerOnTurnStart()
+        public void HandleAllPowerOnRoundEnd(RoundInfo info)
         {
             var copyPowerDict = new Dictionary<PowerType, PowerBase> (PowerDict);
             foreach (PowerBase power in copyPowerDict.Values)
             {
-                power.OnTurnStarted();
+                power.UpdatePowerStatus();
             }
         }
         
@@ -155,28 +165,27 @@ namespace NueGames.Characters
             if (CurrentHealth>MaxHealth)  CurrentHealth = MaxHealth;
             OnHealthChanged?.Invoke(CurrentHealth,MaxHealth);
         }
-        
+
         /// <summary>
         /// 受到傷害
         /// </summary>
-        /// <param name="value"></param>
-        /// <param name="canPierceArmor"></param>
-        public void Damage(int value, bool canPierceArmor = false)
+        /// <param name="damageInfo"></param>
+        public void BeAttacked(DamageInfo damageInfo)
         {
             if (IsDeath) return;
-            OnTakeDamageAction?.Invoke();
-            var remainingDamage = value;
+            OnAttacked?.Invoke(damageInfo);
             
-            if (!canPierceArmor)
+            var remainingDamage = damageInfo.Value;
+            if (!damageInfo.CanPierceArmor)
             {
                 if (PowerDict.ContainsKey(PowerType.Block))
                 {
-                    ApplyPower(PowerType.Block,-value);
+                    ApplyPower(PowerType.Block,- damageInfo.Value);
 
                     remainingDamage = 0;
-                    if (PowerDict[PowerType.Block].Value <= 0)
+                    if (PowerDict[PowerType.Block].Amount <= 0)
                     {
-                        remainingDamage = PowerDict[PowerType.Block].Value * -1;
+                        remainingDamage = PowerDict[PowerType.Block].Amount * -1;
                         ClearPower(PowerType.Block);
                     }
                 }
@@ -228,4 +237,5 @@ namespace NueGames.Characters
         #endregion
 
     }
+    
 }

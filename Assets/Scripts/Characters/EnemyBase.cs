@@ -35,14 +35,15 @@ namespace NueGames.Characters
             CharacterStats.SetCharacterCanvasEvent(EnemyCanvas);
             CharacterStats.OnDeath += OnDeath;
             CharacterStats.SetCurrentHealth(CharacterStats.CurrentHealth);
-            CombatManager.OnAllyTurnStarted += ShowNextAbility;
-            CombatManager.OnEnemyTurnStarted += CharacterStats.HandleAllPowerOnTurnStart;
+
+            CombatManager.OnRoundStart += ShowNextAbility;
+            CombatManager.OnRoundEnd += CharacterStats.HandleAllPowerOnRoundEnd;
         }
         protected override void OnDeath()
         {
             base.OnDeath();
-            CombatManager.OnAllyTurnStarted -= ShowNextAbility;
-            CombatManager.OnEnemyTurnStarted -= CharacterStats.HandleAllPowerOnTurnStart;
+            CombatManager.OnRoundStart -= ShowNextAbility;
+            CombatManager.OnRoundEnd -= CharacterStats.HandleAllPowerOnRoundEnd;
            
             CombatManager.OnEnemyDeath(this);
             AudioManager.PlayOneShot(DeathSoundProfileData.GetRandomClip());
@@ -53,7 +54,7 @@ namespace NueGames.Characters
         #region Private Methods
 
         private int _usedAbilityCount;
-        private void ShowNextAbility()
+        private void ShowNextAbility(RoundInfo info)
         {
             NextAbility = EnemyCharacterData.GetAbility(_usedAbilityCount);
             EnemyCanvas.IntentImage.sprite = NextAbility.Intention.IntentionSprite;
@@ -100,7 +101,8 @@ namespace NueGames.Characters
         private void DoGameAction(EnemyAbilityData targetAbility, CharacterBase self, CharacterBase target)
         {
             // Do Action
-            List<GameActionBase> gameActions =  GameActionGenerator.GetGameActions(null, targetAbility.ActionList, self, target);
+            List<GameActionBase> gameActions =  GameActionGenerator.GetGameActions(null, 
+                ActionSource.Enemy, targetAbility.ActionList, self, target);
             GameActionExecutor.AddToBottom(gameActions);
         }
         
